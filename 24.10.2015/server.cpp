@@ -1,3 +1,9 @@
+/*
+* Сервер принимает точку координат центра окружности в виде x,y и радиус;
+* Также принимается точка поиска.
+* Возвращает признак вхождения точки поиска внутрь заданной окружности.
+*/
+
 #include "stdafx.h"
 
 #define _CRT_SECURE_NO_WARNINGS
@@ -104,6 +110,8 @@ public:
 			transform(strString.begin(), strString.end(), strString.begin(), toupper);
 
 			const char* newString = strString.c_str();
+
+			cout << "Sending: " << newString << endl;
 
 			send(client, newString, strlen(newString), 0);
 		}
