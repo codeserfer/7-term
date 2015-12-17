@@ -9,8 +9,14 @@
 #define FIFO_FILE "MYFIFO"
 #define SECONDS 2
 
-
-void WriteToPipe (char* fifo_file, char* sending_string, int random_priority, int process_id)
+// Функция записи в FIFO
+// В нее передаются:
+// fifo_file - файл ФИФО
+// sending_string - записываемая строка
+// random_priority - по задумке типа необязательный параметр. Если не 0 - то при каждой отправке меняется приоритет процесса
+// process_id - опять же типа необязательный параметр, для смены приоретета процесса нам как бы надо знать его id, вот мы его и передали
+// Короче это может быть немного странно так использовать типа необязательные параметры, но в си нет рантайма, так что либо так, либо дублирование кода.
+void WriteToFIFO (char* fifo_file, char* sending_string, int random_priority, int process_id)
 {
     FILE* fp;
 
@@ -20,6 +26,7 @@ void WriteToPipe (char* fifo_file, char* sending_string, int random_priority, in
         exit(1);
     }
 
+	// Если параметр не 0, то меняем приоритет у процесса случайным образом
     if (random_priority)
     {
         int priority = rand()%11;
@@ -28,20 +35,25 @@ void WriteToPipe (char* fifo_file, char* sending_string, int random_priority, in
     }
 
     // send data to server
+	// Записываем строку в FIFO
     fputs(sending_string, fp);
     fclose(fp);
 }
 
-void ListenPipe (char* fifo_file, int timeout)
-{
-    printf ("CHILD: Listening child pipe!\n");
 
+// Получает данные из FIFO в бесконечном цикле - прерывается он по таймауту
+// Считаем количество полученных байтов
+void ListenFIFO (char* fifo_file, int timeout)
+{
+    printf ("CHILD: Listening child FIFO!\n");
+	
+	// Собственно счетчик байтов
     int received_count = 0;
 
+	// Для подсчета времени
     time_t start = NULL;
     if (timeout)
     {
-        printf ("CHILD: timeout = %d\n", timeout);
         start = time(0);
     }
 
@@ -54,9 +66,12 @@ void ListenPipe (char* fifo_file, int timeout)
 
 	while(1)
 	{
+		// если счетчик времени проициализирован
         if (start)
         {
             double seconds_since_start = difftime( time(0), start);
+
+			// Если мы превысили таймаут - выходим из цикла
             if (seconds_since_start >=timeout)
                 break;
         }
@@ -65,17 +80,12 @@ void ListenPipe (char* fifo_file, int timeout)
 		fp = open(fifo_file, O_RDONLY); // open FIFO file
 		while((n = read(fp, readbuf, 80)) > 0) // read while data exists
 		{
-            //printf ("CHILD RECEIVED: ");
-			////write(1, readbuf, n); // show received data
-			//printf (readbuf);
-			//printf ("\n");
-			//printf ("has reseived: %d symbols\n", n);
-			received_count++;
+			// Считаем количество полученных байтов
+			received_count+=n;
         }
 		close(fp);
 	}
 
-	// ?
 	if (timeout)
 	{
         close(fifo_file);
@@ -90,7 +100,10 @@ main()
 {
     printf ("program has started!\n");
 
-
+	
+	// Можно было бы написать еще программу-клиент. Но я ленивый, поэтому у меня просто два форка - типа два клиента.
+	
+	// Первый клиент
     // first child process start
     switch (fork())
     {
@@ -105,17 +118,20 @@ main()
             else
                 perror("getcwd() error");
 
-            // current directory plus file name of pipe (pid)
+			// Я решил использовать для каждого процесса файл ФИФО следующего вида: <путь до папки>/<ID процесса>
+			// Так точно будет уникальное имя.
+            // current directory plus file name of FIFO (pid)
             char fifo_file [1024];
             sprintf (fifo_file, "%s/%d", cwd, getpid());
 
             //printf ("fifo_file: %s\n", fifo_file);
 
             //WRITE
-            WriteToPipe (FIFO_FILE, fifo_file, 0, 0);
+			// Третий и четвертый параметры - это типа наши необязательные, поэтому 0
+            WriteToFIFO (FIFO_FILE, fifo_file, 0, 0);
 
-            ListenPipe(fifo_file, SECONDS);
-
+			// Получаем байты от сервера. И там же и считаем.
+            ListenFIFO(fifo_file, SECONDS);
 
             unlink (fifo_file);
 
@@ -128,6 +144,8 @@ main()
     // first child process end
 
     // second child process start
+	// Точно так же как первый клиент.
+	// Второй клиент
     switch (fork())
     {
         case 0:
@@ -141,17 +159,17 @@ main()
             else
                 perror("getcwd() error");
 
-            // current directory plus file name of pipe (pid)
+            // current directory plus file name of FIFO (pid)
             char fifo_file [1024];
             sprintf (fifo_file, "%s/%d", cwd, getpid());
 
             //printf ("fifo_file: %s\n", fifo_file);
 
             // Write
-            WriteToPipe (FIFO_FILE, fifo_file, 0, 0);
+            WriteToFIFO (FIFO_FILE, fifo_file, 0, 0);
 
             // Listen
-            ListenPipe(fifo_file, SECONDS);
+            ListenFIFO(fifo_file, SECONDS);
 
 
             printf ("unlinling file '%s'\n", fifo_file);
@@ -170,6 +188,7 @@ main()
 
 
     // main process start
+	// А это наш сервер собственно
     printf ("main process has been started\n");
 
 	unlink(FIFO_FILE); // remove FIFO file, if exist
@@ -181,14 +200,18 @@ main()
 	while(1)
 	{
 		// read from client
+
+		// Собственно здесь к серверу могут по его общеизвестному ФИФО подключиться клиенты. Для работы с каждым из них надо создать еще один процесс (fork()) и 
+		// Собственно осуществлять передачу данных уже по FIFO клиента. Как раз клиент и отправляем нам путь к его ФИФО. И по нему мы и будем с ним общаться.
+		
 		fp = open(FIFO_FILE, O_RDONLY); // open FIFO file
 		while((n = read(fp, readbuf, 80)) > 0) // read while data exists
 		{
             // here are received data
 			//write (1, readbuf, n);
-			printf ("Child pipe file: '%s'\n", readbuf);
+			printf ("Child FIFO file: '%s'\n", readbuf);
 
-
+			// Получили файл ФИФО от клиента - форкаемся, чтобы создать новый процесс для общения с клиентом по его ФИФО.
 			switch (fork())
             {
                 case 0:
@@ -207,7 +230,7 @@ main()
                         sprintf (sending_symbol, "%c%c", r, '\0');
                         //printf ("%s ", sending_symbol);
 
-                        WriteToPipe(readbuf, sending_symbol, 1, getpid());
+                        WriteToFIFO(readbuf, sending_symbol, 1, getpid());
                     }
 
 
