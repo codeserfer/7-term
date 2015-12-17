@@ -102,15 +102,80 @@ let main argv =
         (List.find (fun (letter, code) -> letter = letterToEncode) table) |> snd
 
     let result = List.ofSeq input |> List.map Encode |> List.fold (+) ""
+
+
     let resultToOctets = ToOctets result
 
     let bytes = EncodedToBytes resultToOctets (resultToOctets.Length /  8) 0
 
     let output = table.Length.ToString() + "\n" +
         stringTable +
-        input.Length.ToString() + "\n" +
+        result.Length.ToString() + "\n" +
         (System.Text.Encoding.ASCII.GetString (List.toArray bytes)) 
 
     printf "%s" output
+
+    WriteFile ("output.txt", output)
+
+    //// Reading file and encoding
+
+
+    printf "\n------------------------------\n\n";
+
+    use sr = new StreamReader ("output.txt")
+
+    // size of table
+    let tableSize = System.Int32.Parse <| sr.ReadLine ()
+
+    let ReadTable = seq {  
+        for i in 1 .. tableSize do 
+            yield sr.ReadLine () 
+    }
+
+    // table
+    let table = Seq.toArray <| Seq.map (fun (s : string) -> (s.[0],s.[1..])) ReadTable
+
+    // lenght of coded text
+    let textLenght = System.Int32.Parse <| sr.ReadLine()
+
+
+    let ReadText = seq {
+        while not sr.EndOfStream do
+            yield sr.ReadLine ()
+    }
+
+    // coded text
+    let codedText = (String.concat "" (Seq.toArray ReadText)).ToCharArray()
+
+    let rec IntToBinary i =
+        match i with
+        | 0 | 1 -> string i
+        | _ ->
+            let bit = string (i % 2)
+            (IntToBinary (i / 2)) + bit
+
+
+    let binaryCodedText = Array.map (fun c -> IntToBinary c) <| Array.map (fun c -> (int c)) codedText
+
+    // concatinating and cuted
+    // Это бинарный код почему-то не совпадает с исходным!
+    let binaryString = (binaryCodedText |> Array.fold (+) "").[0..(textLenght-1)]
+
+
+
+
+    // Тут мои попытки написать перевод кодов по таблице в символы.
+    let rec codesToChars (resultString: string, table, binaryString: string) = 
+        for i in table do
+            let code : string = snd i
+            if (binaryString.Length >= code.Length && binaryString.Substring(0, code.Length).Equals (code)) then
+                codesToChars (resultString + "blo", table, binaryString.Substring(code.Length))
+        resultString
+
+
+    codesToChars ("", table, binaryString)
+
+    // for debuf point   
+    printf "ff"
 
     0
