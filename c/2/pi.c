@@ -1,28 +1,25 @@
-#include <string.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <stdio.h>
-#include <signal.h>
-#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <math.h>
+#include <signal.h>
 
+
+double pi = 0;
 int counting_pi = 1;
-
-int fd[2]; // pipe
 
 void end_counting_pi(int sig)
 {
-    printf ("CHILD:  End counting!\n");
     counting_pi = 0;
 }
 
+
 void start_counting_pi(int sig)
 {
-    printf ("CHILD:  Start counting pi!\n");
     signal(SIGUSR2, end_counting_pi);
 
-
+    write(2, "Calculating PI has started started\n", strlen("Calculating PI has started started\n")+1);
 
     // counting
     double pi = 1.0;
@@ -52,42 +49,24 @@ void start_counting_pi(int sig)
         pi = pi* ((double)numerator/(double)denominator);
     }
 
+    // end counting pi
+
     pi = 2*pi;
 
-    printf ("pi is %f\n", pi);
 
-    char text [40];
-    sprintf(text, "@%d pi %f", getpid(), pi);
+    // пишем данные в выходной поток, который перехватывается родительским процессом
+	write(1, &pi, sizeof(double));
 
-    printf ("sending text: '%s'\n", text);
-
-    close(fd[0]); // Close unused read end
-    write(fd[1], text, strlen(text));
-
-    close (fd[1]);
+	// выводим на консоль информацию, для этого используем поток ошибок, перенаправленный на поток вывода
+	write(2, "PI child was killed\n", strlen("PI child was killed\n")+1);
 
     exit (0);
 
 }
 
-int main(int argc, char *argv[])
+int main(int argc, const char * argv[])
 {
-
-    if (argc<2)
-    {
-        printf ("No arguments! pi\n");
-        printf ("Has reseived %d arguments!\n", argc);
-        printf ("%s, %s, %s\n", argv[0], argv[1], argv[2]);
-        return -1;
-    }
-
-    fd[0] = atoi (argv[0]);
-    fd[1] = atoi (argv[1]);
-
-    printf ("args: %d, %d", fd[0], fd[1]);
-
-    printf ("Child process1 has been started!\n");
-    signal(SIGUSR1, start_counting_pi);
+	signal(SIGUSR1, start_counting_pi);
     while (1);
 
     return 0;
