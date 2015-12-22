@@ -5,18 +5,22 @@
 #include <math.h>
 #include <signal.h>
 
-
+// Само вычисляемое ПИ
 double pi = 0;
+
+// "Переменная-флажок" для цикла вычисления
 int counting_pi = 1;
 
 void end_counting_pi(int sig)
 {
+	// Завершаем цикл
     counting_pi = 0;
 }
 
 
 void start_counting_pi(int sig)
 {
+	// "Вешаем" на сигнал SIGUSR2 окончание вычисления ПИ
     signal(SIGUSR2, end_counting_pi);
 
     write(2, "Calculating PI has started started\n", strlen("Calculating PI has started started\n")+1);
@@ -66,7 +70,10 @@ void start_counting_pi(int sig)
 
 int main(int argc, const char * argv[])
 {
+	// "Вешаем" на сигнал SIGUSR1 начало вычисления ПИ
 	signal(SIGUSR1, start_counting_pi);
+
+	// Я не придумал ничего умнее. Это некое ожидание сигнала SIGUSR1 :DDD
     while (1);
 
     return 0;
