@@ -25,18 +25,12 @@ int main(int argc, const char * argv[]) {
 	// for example
 	int x = 2;
 
+	int fd [2];
+	int fd2 [2];
 
+	pipe(fd);
+	pipe(fd2);
 
-
-	int dataToChild1[2];
-	int dataFromChild1[2];
-	int dataToChild2[2];
-	int dataFromChild2[2];
-
-	pipe(dataToChild1);
-	pipe(dataFromChild1);
-	pipe(dataToChild2);
-	pipe(dataFromChild2);
 
 
 
@@ -46,9 +40,9 @@ int main(int argc, const char * argv[]) {
         {
             printf ("First child process\n");
 
-            dup2(dataToChild1[0], 0);
-            dup2(1, 2);
-            dup2(dataFromChild1[1], 1);
+            dup2 (fd[0], 0);
+            dup2 (1, 2);
+            dup2 (fd[1], 1);
 
             if (execl ("/home/codeserfer/Dropbox/Code_Blocks/LAB-1-PI/bin/Debug/LAB-1-PI", 0) == -1)
             {
@@ -70,11 +64,11 @@ int main(int argc, const char * argv[]) {
         {
             printf ("Second child process\n");
 
-            dup2(dataToChild2[0], 0);
-            dup2(1, 2);
-            dup2(dataFromChild2[1], 1);
+            dup2 (fd2[0], 0);
+            dup2 (1, 2);
+            dup2 (fd2[1], 1);
 
-            write(dataToChild2[1], &x, sizeof(int));
+            write(fd2[1], &x, sizeof(int));
 
             if (execl ("/home/codeserfer/Dropbox/Code_Blocks/LAB-1-EXP/bin/Debug/LAB-1-EXP", 0) == -1)
             {
@@ -112,8 +106,8 @@ int main(int argc, const char * argv[]) {
 	double exp = 0;
 	double pi = 0;
 
-	read(dataFromChild1[0], &pi, sizeof(double));
-	read(dataFromChild2[0], &exp, sizeof(double));
+	read(fd[0], &pi, sizeof(double));
+	read(fd2[0], &exp, sizeof(double));
 
     printf ("exp = %f\n", exp);
 	printf ("pi = %f\n", pi);
