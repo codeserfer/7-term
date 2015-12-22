@@ -43,6 +43,7 @@ int main(int argc, const char * argv[]) {
             dup2 (fd[0], 0);
             dup2 (1, 2);
             dup2 (fd[1], 1);
+			close (fd[0]);
 
             if (execl ("/home/codeserfer/Dropbox/Code_Blocks/LAB-1-PI/bin/Debug/LAB-1-PI", 0) == -1)
             {
@@ -67,6 +68,7 @@ int main(int argc, const char * argv[]) {
             dup2 (fd2[0], 0);
             dup2 (1, 2);
             dup2 (fd2[1], 1);
+			close (fd[0]);
 
             write(fd2[1], &x, sizeof(int));
 
