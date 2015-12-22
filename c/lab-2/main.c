@@ -16,72 +16,85 @@ void MakeFIFO (char* fifoFile)
     mkfifo(fifoFile, 0777);
 }
 
+void Client ()
+{
+umask(0);
+    srand(time(0));
+    int fp;
+
+
+    if((fp = open(FIFO_FILE, O_RDWR)) == -1)
+    {
+        perror("open error");
+        exit(1);
+    }
+
+
+    char fifo_file [1024];
+    sprintf (fifo_file, "%d", getpid());
+
+    printf ("fifo_file = %s\n", fifo_file);
+
+    MakeFIFO (fifo_file);
+
+    write(fp, fifo_file, strlen(fifo_file)+1);
+    close(fp);
+
+    fp = open(fifo_file, O_NONBLOCK | O_RDWR);
+
+    time_t t = time(NULL);
+    int transeferedCount = 0;
+    while((time(NULL) - t) < TIMEOUT)
+    {
+        char ch;
+        if(read(fp, &ch, sizeof(char)))
+        {
+            transeferedCount++;
+            //printf ("%c", ch);
+        }
+    }
+
+    printf ("total received symbols: %d\n", transeferedCount);
+    close(fp);
+    unlink(fifo_file);
+}
+
 int main()
 {
     printf ("Server has been started!\n");
 	srand(time(0));
 
-	//unlink(FIFO_FILE);
 	int fp;
 	char readbuf[80];
 
-	//umask(0);
-	//mkfifo(FIFO_FILE, 0777);
 	MakeFIFO(FIFO_FILE);
 
+    //client fork
 
     switch (fork())
     {
         case 0:
         {
-            printf ("Fork!\n");
+            printf ("Fork 1!\n");
 
-            umask(0);
-            srand(time(0));
-            int fp;
-
-
-            if((fp = open(FIFO_FILE, O_RDWR)) == -1)
-            {
-                perror("open error");
-                exit(1);
-            }
-
-
-            char fifo_file [1024];
-            sprintf (fifo_file, "%d", getpid());
-
-            printf ("fifo_file = %s\n", fifo_file);
-
-            ////
-            MakeFIFO (fifo_file);
-            //unlink(fifo_file);
-            //umask(0);
-            //mkfifo(fifo_file, 0777);
-
-            write(fp, fifo_file, strlen(fifo_file)+1);
-            close(fp);
-
-            fp = open(fifo_file, O_NONBLOCK | O_RDWR);
-
-            time_t t = time(NULL);
-            int transeferedCount = 0;
-            while((time(NULL) - t) < TIMEOUT)
-            {
-                char ch;
-                if(read(fp, &ch, sizeof(char)))
-                {
-                    transeferedCount++;
-                    //printf ("%c", ch);
-                }
-            }
-
-            printf ("total received symbols: %d\n", transeferedCount);
-            close(fp);
-            unlink(fifo_file);
+            Client ();
             return 0;
 
+            exit(0);
+        }
+        case -1:
+            printf ("Can't fork!\n");
+            return 0;
+    }
 
+    switch (fork())
+    {
+        case 0:
+        {
+            printf ("Fork 2!\n");
+
+            Client ();
+            return 0;
 
             exit(0);
         }
@@ -94,10 +107,8 @@ int main()
 
 	fp = open(FIFO_FILE, O_RDONLY);
 
-	//client fork
 
-
-
+    //server
 
 	while(1)
 	{
