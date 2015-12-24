@@ -4,10 +4,12 @@
 #include "FileProcessing.h"
 #include <time.h>
 #include <iostream>
+#include "Exception.h"
 
 
 #define PORT 69
 #define TIMEOUT 5000
+#define HOST "127.0.0.1"
 
 class TFTP
 {

@@ -4,6 +4,7 @@
 #include "FileProcessing.h"
 #include <time.h>
 #include "TFTP.h"
+#include  "Exception.h"
 
 
 
@@ -15,20 +16,23 @@ int _tmain(int argc, _TCHAR* argv[])
 	
 	TFTP* tftp = new TFTP();
 
-	int input = -1;
-	char* fileName = new char[255];
-	while (input != 0)
+	try
 	{
-		
-		tftp->InitClient();
 
-		cout << "0. Exit" << endl;
-		cout << "1. Get file" << endl;
-		cout << "2. Send file" << endl;
-		
-		cin >> input;
-		switch (input)
+		int input = -1;
+		char* fileName = new char[255];
+		while (input != 0)
 		{
+
+			tftp->InitClient();
+
+			cout << "0. Exit" << endl;
+			cout << "1. Get file" << endl;
+			cout << "2. Send file" << endl;
+
+			cin >> input;
+			switch (input)
+			{
 			case 0:
 				break;
 
@@ -44,13 +48,18 @@ int _tmain(int argc, _TCHAR* argv[])
 
 				tftp->SendFile(fileName);
 				break;
-		
+
 			default:
 				break;
+			}
 		}
-	}
 
-	delete[] fileName;
+		delete[] fileName;
+	}
+	catch (Exception e)
+	{
+		cout << &e << endl;
+	}
 
 	tftp->CloseSocket();
 

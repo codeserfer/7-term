@@ -34,7 +34,7 @@ void TFTP::InitClient()
 	bind(s, (sockaddr *)&clientAddr, sizeof(clientAddr));
 
 	ServerAddr.sin_family = AF_INET;
-	ServerAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	ServerAddr.sin_addr.s_addr = inet_addr(HOST);
 	ServerAddr.sin_port = htons(PORT);
 
 	int timeout = TIMEOUT;
@@ -129,20 +129,17 @@ void TFTP::SendFile(char* fileName)
 			{
 				if (recvmsg[1] == 5)
 				{
-					cout << "protocol error\n";
-					break;
+					throw Exception("Protocol error!");
 				}
 			}
 		}
 		else if (retValue == 0)
 		{
-			cout << "server closed\n";
-			return;
+			throw Exception("Server is closed!");
 		}
 		else
 		{
-			cout << "socket error";
-			return;
+			throw Exception("Socket error!");
 		}
 	}
 	delete[]recvmsg;
@@ -177,6 +174,7 @@ void TFTP::RecvFile(char* fileName)
 	sockaddr_in from;
 	int structSize = sizeof(from);
 	int blockNumber = 1;
+
 	while (true)
 	{
 		int returnValue = recvfrom(s, recvpart, 520, 0, (sockaddr*)&from, &structSize);
@@ -194,7 +192,9 @@ void TFTP::RecvFile(char* fileName)
 
 				DWORD nul = 0;
 				memcpy(ack, &nul, 4);
+
 				short int code = 4;
+
 				memcpy((void*)((size_t)ack + 1), &code, 1);
 				memcpy((void*)((size_t)ack), (void*)((size_t)&code + 1), 1);
 
@@ -203,7 +203,9 @@ void TFTP::RecvFile(char* fileName)
 				{
 					memcpy((void*)((size_t)ack + 2), (void*)((size_t)&recvBlockNumber + 1), 1);
 					memcpy((void*)((size_t)ack + 3), &recvBlockNumber, 1);
+
 					sendto(s, (char*)ack, 4, 0, (sockaddr *)&from, sizeof(from));
+
 					continue;
 				}
 
@@ -226,7 +228,7 @@ void TFTP::RecvFile(char* fileName)
 				blockNumber++;
 				if (returnValue - 4 != 512)
 				{
-					cout << "file " << fileName << " has been received (" << receivedbyte << "bytes)" << endl;
+					cout << "file " << fileName << " has been received (" << receivedbyte << " bytes)" << endl;
 
 					file->Close();
 					sendto(s, (char*)ack, 4, 0, (sockaddr *)&from, sizeof(from));
@@ -237,20 +239,17 @@ void TFTP::RecvFile(char* fileName)
 			{
 				if (recvpart[1] == 5)
 				{
-					cout << "protocol error\n";
-					break;
+					throw Exception("Protocol error!");
 				}
 			}
 		}
 		else if (returnValue == 0)
 		{
-			cout << "server closed\n";
-			return;
+			throw Exception("Server has been closed!");
 		}
 		else
 		{
-			cout << "socket error";
-			break;
+			throw Exception("Socket error!");
 		}
 	}
 	delete[]recvpart;
