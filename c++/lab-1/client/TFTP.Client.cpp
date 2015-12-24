@@ -1,13 +1,11 @@
-// TFTP.Client.cpp : Defines the entry point for the console application.
-//
-
 #include "stdafx.h"
 #include <iostream>
 #include <Windows.h>
 #include "FileProcessing.h"
 #include <time.h>
 
-
+#define PORT 69
+#define TIMEOUT 5000
 
 using namespace std;
 sockaddr_in ServerAddr;
@@ -16,9 +14,12 @@ SOCKET s;
 
 void InitClient()
 {
+	WSADATA wsaData;
+	WSAStartup(MAKEWORD(2, 2), &wsaData);
+
 	s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
-	srand(time(NULL));
+	srand(time(nullptr));
 	int port = rand() % 6000 + 2000;
 
 	cout << "New port is " << port << endl;
@@ -32,16 +33,16 @@ void InitClient()
 
 	ServerAddr.sin_family = AF_INET;
 	ServerAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	ServerAddr.sin_port = htons(69);
+	ServerAddr.sin_port = htons(PORT);
 
-	int timeout = 5000;
+	int timeout = TIMEOUT;
 	setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(timeout));
 }
 
-void SendFile(char* FileName)
+void SendFile(char* fileName)
 {
 	FileProcessing* file = new FileProcessing();
-	int fileNameSize = strlen(FileName);
+	int fileNameSize = strlen(fileName);
 	int datasize = 0;
 	char* recvmsg = new char[128];
 	void* sendData = new char[516];
@@ -51,24 +52,28 @@ void SendFile(char* FileName)
 	char* request = new char[520];
 	request[0] = 0; // запрос на запись
 	request[1] = 2;	// запрос на запись
-	memcpy(request + 2, FileName, fileNameSize);
-
+	memcpy(request + 2, fileName, fileNameSize);
 	request[2 + fileNameSize] = 0;
 	memcpy(request + 3 + fileNameSize, "octet\0", 6);
 	sendto(s, request, 3 + fileNameSize + 6, 0, (sockaddr *)&ServerAddr, sizeof(ServerAddr));
+
 	delete[] request;
 
-	unsigned int sendedbyte = 0;
 	sockaddr_in from;
+
+	unsigned int sentbyte = 0;
 	int structSize = sizeof(from);
 	int sendBlockNumber = 0;
 	int ackBlockNumber = 0;
+
 	while (true)
 	{
 		int retValue = recvfrom(s, recvmsg, 128, 0, (sockaddr*)&from, &structSize);
+
 		if (retValue > 0)
 		{
 			int op = recvmsg[1];
+
 			if (op == 4) // команда 
 			{
 				memcpy(&ackBlockNumber, recvmsg + 3, 1);
@@ -83,17 +88,21 @@ void SendFile(char* FileName)
 
 				if (ackBlockNumber == 0)
 				{
-					string f = FileName;
+					string f = fileName;
 					file->Open(f);
 				}
 
+				
 				DWORD nul = 0;
+
 				memcpy(sendData, &nul, 4);
+
 				short int code = 3;
+
 				sendBlockNumber = ackBlockNumber+1;
+
 				memcpy((void*)((size_t)sendData + 1), &code, 1);
 				memcpy((void*)((size_t)sendData), (void*)((size_t)&code + 1), 1);
-
 				memcpy((void*)((size_t)sendData + 2), (void*)((size_t)&sendBlockNumber + 1), 1);
 				memcpy((void*)((size_t)sendData + 3), &sendBlockNumber, 1);
 
@@ -102,12 +111,12 @@ void SendFile(char* FileName)
 				datasize = file->ReadData(data, 512);
 				memcpy((void*)((size_t)sendData + 4), data, datasize);
 
-				sendedbyte += datasize;
-				cout << "Sended block:" << sendBlockNumber << '\n';
+				sentbyte += datasize;
+				cout << "Sent block:" << sendBlockNumber << '\n';
 				if (datasize != 512)
 				{
-					cout << "file " << FileName << " sended\n";
-					cout << "size " << sendedbyte << '\n';
+					cout << "file " << fileName << " (" << sentbyte << " byte) has been sent\n";
+					
 					file->Close();
 					sendto(s, (char*)sendData, datasize+4, 0, (sockaddr *)&from, sizeof(from));
 					break;
@@ -140,10 +149,10 @@ void SendFile(char* FileName)
 
 }
 
-void RecvFile(char* FileName)
+void RecvFile(char* fileName)
 {
-	FileProcessing *file = new FileProcessing();
-	int FileNameSize = strlen(FileName);
+	FileProcessing* file = new FileProcessing();
+	int fileNameSize = strlen(fileName);
 	
 	char* recvpart = new char[520];
 	void * ack = new char[4];
@@ -151,23 +160,25 @@ void RecvFile(char* FileName)
 	//запрашиваем файл
 	char* request = new char[520];	//запрос
 	request[0] = 0, request[1] = 1;					//read
-	memcpy(request + 2, FileName, FileNameSize);
-	request[2 + FileNameSize] = 0;
-	memcpy(request + 3 + FileNameSize, "octet\0", 6);
-	sendto(s, request, 3 + FileNameSize + 6, 0, (sockaddr *)&ServerAddr, sizeof(ServerAddr));
+	memcpy(request + 2, fileName, fileNameSize);
+	request[2 + fileNameSize] = 0;
+	memcpy(request + 3 + fileNameSize, "octet\0", 6);
+	sendto(s, request, 3 + fileNameSize + 6, 0, (sockaddr *)&ServerAddr, sizeof(ServerAddr));
 	delete [] request;
 
-	unsigned int Receivedbyte = 0;
+	unsigned int receivedbyte = 0;
 	sockaddr_in from;
 	int structSize = sizeof(from);
-	int BlockNumber = 1;
+	int blockNumber = 1;
 	while (true)
 	{
-		int RetValue = recvfrom(s, recvpart, 520, 0, (sockaddr*)&from, &structSize);
-		if (RetValue > 0)
+		int returnValue = recvfrom(s, recvpart, 520, 0, (sockaddr*)&from, &structSize);
+
+		if (returnValue > 0)
 		{
 			int op = recvpart[1];
-			if (op == 3) //команда DATA
+
+			if (op == 3) // DATA command
 			{
 				int recvBlockNumber = 0;
 				
@@ -180,32 +191,36 @@ void RecvFile(char* FileName)
 				memcpy((void*)((size_t)ack + 1), &code, 1);
 				memcpy((void*)((size_t)ack), (void*)((size_t)&code + 1), 1);
 
-				
 
-				if (recvBlockNumber != BlockNumber)
+				if (recvBlockNumber != blockNumber)
 				{
 					memcpy((void*)((size_t)ack + 2), (void*)((size_t)&recvBlockNumber + 1), 1);
 					memcpy((void*)((size_t)ack + 3), &recvBlockNumber, 1);
 					sendto(s, (char*)ack, 4, 0, (sockaddr *)&from, sizeof(from));
 					continue;
 				}
-				string f = FileName;
-				if (recvBlockNumber == 1)
-					file->Create(f);
-					
-				Receivedbyte += (RetValue - 4);
-				
-				file->WriteData((void*)(recvpart+4), RetValue - 4);
 
-				memcpy((void*)((size_t)ack + 2), (void*)((size_t)&BlockNumber + 1), 1);
-				memcpy((void*)((size_t)ack + 3), &BlockNumber, 1);
-				sendto(s, (char*)ack, 4, 0, (sockaddr *)&from, sizeof(from));
-				cout << "Received block:" << BlockNumber << '\n';
-				BlockNumber++;
-				if (RetValue - 4 != 512)
+				string f = fileName;
+				if (recvBlockNumber == 1)
 				{
-					cout << "file " << FileName << " received\n";
-					cout << "size " << Receivedbyte << '\n';
+					file->Create(f);
+				}
+					
+				receivedbyte += (returnValue - 4);
+				
+				file->WriteData((void*)(recvpart+4), returnValue - 4);
+
+				memcpy((void*)((size_t)ack + 2), (void*)((size_t)&blockNumber + 1), 1);
+				memcpy((void*)((size_t)ack + 3), &blockNumber, 1);
+				sendto(s, (char*)ack, 4, 0, (sockaddr *)&from, sizeof(from));
+
+				cout << "Received block:" << blockNumber << '\n';
+
+				blockNumber++;
+				if (returnValue - 4 != 512)
+				{
+					cout << "file " << fileName << " has been received (" << receivedbyte << "bytes)" << endl;
+
 					file->Close();
 					sendto(s,(char*) ack, 4, 0, (sockaddr *)&from, sizeof(from));
 					break;
@@ -220,7 +235,7 @@ void RecvFile(char* FileName)
 				}
 			}
 		}
-		else if (RetValue == 0)
+		else if (returnValue == 0)
 		{
 			cout << "server closed\n";
 			return;
@@ -237,36 +252,43 @@ void RecvFile(char* FileName)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	int input = 0;
+	int input = -1;
 	char* fileName = new char[255];
-	while (input != 3)
+	while (input != 0)
 	{
-		WSADATA wsaData;
-		WSAStartup(MAKEWORD(2, 2), &wsaData);
+		
 		InitClient();
 
-		cout << "\n1 Get file\n2 Send file\n3 Exit\n";
+		cout << "0. Exit" << endl;
+		cout << "1. Get file" << endl;
+		cout << "2. Send file" << endl;
+		
 		cin >> input;
 		switch (input)
 		{
-		case 1:
-			cout << "Enter filename \n";
-	
-			cin >> fileName;
-			RecvFile(fileName);
-			break;
-		case 2:
-			cout << "Enter filename \n";
-			cin >> fileName;
-			SendFile(fileName);
-			break;
-		case 3:
-			break;
-		default:
-			break;
+			case 0:
+				break;
+
+			case 1:
+				cout << "Input filename \n";
+				cin >> fileName;
+
+				RecvFile(fileName);
+				break;
+			case 2:
+				cout << "Input filename \n";
+				cin >> fileName;
+
+				SendFile(fileName);
+				break;
+		
+			default:
+				break;
 		}
 	}
-	delete[]fileName;
+
+	delete[] fileName;
+
 	closesocket(s);
 	WSACleanup();
 	return 0;
