@@ -30,8 +30,7 @@ void FileProcessing::Close()
 int FileProcessing::ReadData(void* buf, size_t maxSize)
 {
 	DWORD dwSize;
-	BOOL bResult = ReadFile(
-		m_hFile, buf, maxSize, &dwSize, NULL);
+	BOOL bResult = ReadFile(m_hFile, buf, maxSize, &dwSize, NULL);
 	return dwSize;
 }
 

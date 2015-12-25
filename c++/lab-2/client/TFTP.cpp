@@ -111,6 +111,9 @@ void TFTP::SendFile(char* fileName)
 
 
 				datasize = file->ReadData(data, 512);
+
+				cout << "We have read " << datasize << " bytes" << endl;
+
 				memcpy((void*)((size_t)sendData + 4), data, datasize);
 
 				sentbyte += datasize;
@@ -162,8 +165,8 @@ void TFTP::RecvFile(char* fileName)
 	void * ack = new char[4];
 
 	//запрашиваем файл
-	char* request = new char[520];	//запрос
-	request[0] = 0, request[1] = 1;					//read
+	char* request = new char[520];
+	request[0] = 0, request[1] = 1; // RRQ
 	memcpy(request + 2, fileName, fileNameSize);
 	request[2 + fileNameSize] = 0;
 	memcpy(request + 3 + fileNameSize, "octet\0", 6);
