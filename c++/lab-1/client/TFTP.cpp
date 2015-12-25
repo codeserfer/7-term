@@ -183,7 +183,7 @@ void TFTP::RecvFile(char* fileName)
 		{
 			int op = recvpart[1];
 
-			if (op == 3) // DATA command
+			if (op == DATA_COMMAND) // DATA command
 			{
 				int recvBlockNumber = 0;
 

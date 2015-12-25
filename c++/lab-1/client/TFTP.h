@@ -10,6 +10,7 @@
 #define PORT 69
 #define TIMEOUT 5000
 #define HOST "127.0.0.1"
+#define DATA_COMMAND 3
 
 class TFTP
 {
