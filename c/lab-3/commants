@@ -8,3 +8,5 @@ gcc -o time_svc rcalculations_svc.c pi_exp_svc.c -lm -std=c99
 
 В другой консоли запускаем клиент:
 ./time_clnt
+
+Вероятно, придется поставить пакет portmap
