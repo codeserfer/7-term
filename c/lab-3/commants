@@ -1,0 +1,10 @@
+rpcgen rcalculations.x
+gcc -o time_clnt rcalculations_clnt.c pi_exp_clnt.c -lm
+gcc -o time_svc rcalculations_svc.c pi_exp_svc.c -lm -std=c99
+
+
+Теперь в одной консоли запускаем сервер:
+./time_svc
+
+В другой консоли запускаем клиент:
+./time_clnt
