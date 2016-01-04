@@ -1,1 +1,0 @@
-Dima:300 Rina:100 Boris:500 Nikolay:1337 
