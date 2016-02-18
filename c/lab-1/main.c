@@ -45,7 +45,7 @@ int main(int argc, const char * argv[]) {
             dup2 (fd[1], 1);
 			close (fd[0]);
 
-            if (execl ("/home/codeserfer/Dropbox/Code_Blocks/LAB-1-PI/bin/Debug/LAB-1-PI", 0) == -1)
+            if (execl ("pi", 0) == -1) //path to pi program
             {
                 printf ("Can't execute program for pi!\n");
                 return 0;
@@ -72,7 +72,7 @@ int main(int argc, const char * argv[]) {
 
             write(fd2[1], &x, sizeof(int));
 
-            if (execl ("/home/codeserfer/Dropbox/Code_Blocks/LAB-1-EXP/bin/Debug/LAB-1-EXP", 0) == -1)
+            if (execl ("exp", 0) == -1) //path to exp program
             {
                 printf ("Can't launch second child!\n");
                 return 0;
